@@ -9,7 +9,7 @@ BEGIN {
 
 function on_every(params) {
   # Test when joined
-  if (params["command"] == "JOIN" && params["prefix_nick"] irc_nick) {
+  if (params["command"] == "JOIN" && params["prefix_nick"] == irc_nick) {
     irc_privmsg(params["args"], "Hi, I'm a crazy bot.")
   }
 }
