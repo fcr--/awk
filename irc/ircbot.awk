@@ -9,6 +9,14 @@ BEGIN {
     } else if (ARGV[i] == "-irc.channels") {
       # Comma separated channel list:
       irc_channels = ARGV[++i]
+    } else if(irc_additional_options) {
+      res = on_option(ARGV[i], ARGV[i+1])
+      if (res == "") {
+       	i++
+      } else {
+	print "Error: " res
+	print "Syntax: " ARGV[0] " [-irc.nick <NICK>] -irc.channels <CHANNEL_LIST> " irc_additional_options
+      }
     } else {
       print "Option " ARGV[i] " not supported."
       print "Syntax: " ARGV[0] " [-irc.nick <NICK>] -irc.channels <CHANNEL_LIST>"
