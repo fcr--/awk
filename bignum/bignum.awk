@@ -212,14 +212,15 @@ function bignum_ne(a, b){ return bignum_cmp(a, b) != 0 }
 
 # Add two bignums, don't care about the sign.
 function bignum_rawAdd(a, b,
-  na, nb, j, arr_a, arr_b, r, car, sum){
+  na, nb, j, max, arr_a, arr_b, r, car, sum){
   na = split(a, arr_a)
   nb = split(b, arr_b)
-  for(j=na + 1; j <= nb; j++) arr_a[j] = 0
-  for(j=nb + 1; j <= na; j++) arr_b[j] = 0
+  max = na>nb ? na : nb
+  #for(j=na + 1; j <= nb; j++) arr_a[j] = 0
+  #for(j=nb + 1; j <= na; j++) arr_b[j] = 0
   r = "bignum 0"
   car = 0
-  for(j=3; j<=na; j++){
+  for(j=3; j<=max; j++){
     sum = arr_a[j] + arr_b[j] + car
     car = rshift(sum, bignum_atombits)
     r = r " " and(sum, bignum_atommask)
@@ -283,9 +284,9 @@ function bignum_sub(a, b,
   if(cmp==0)
     return bignum_zero()
   if(cmp==1)
-    return bignum_setsign(bignum_rawSub(a, b), s==1)
+    return bignum_setsign(bignum_rawSub(a, b), s)
   if(cmp==-1)
-    return bignum_setsign(bignum_rawSub(b, a), !(s==1))
+    return bignum_setsign(bignum_rawSub(b, a), !s)
 }
 
 ############################### Multiplication #################################
@@ -306,7 +307,7 @@ function bignum_mul(a, b){
 
 # Karatsuba Multiplication
 function bignum_kmul(a, b,
-  na, nb, arr_a, arr_b, n, nmin, m, x0, x1, y0, y1, p1, p2, p3){
+  na, nb, arr_a, arr_b, n, nmin, m, x0, x1, y0, y1, p0, p1, p2){
 
   na = split(a, arr_a)
   nb = split(b, arr_b)
@@ -316,7 +317,7 @@ function bignum_kmul(a, b,
   if(nmin < bignum_karatsubaThreshold)
     return bignum_bmul(a, b)
 
-  m = int(n / 2 + 0.6)
+  m = int(nmin / 2 + 0.6)
 
   x0 = y0 = x1 = y1 = "bignum 0"
   for(i = 3; i <= m + 2; i++){
@@ -327,18 +328,21 @@ function bignum_kmul(a, b,
     x1 = x1 " " arr_a[i]
   for(i = m + 3; i <= nb; i++)
     y1 = y1 " " arr_b[i]
+  
+  p2 = bignum_kmul(x1, y1)
+  p1 = bignum_kmul(bignum_add(x1, x0), bignum_add(y1, y0))
+  p0 = bignum_kmul(x0, y0)
 
-  p1 = bignum_kmul(x1, y1)
-  p2 = bignum_kmul(x0, y0)
-  p3 = bignum_kmul(bignum_add(x1, x0), bignum_add(y1, y0))
+  p1 = bignum_sub(p1, p2)
+  p1 = bignum_sub(p1, p0)
+  # At this point: p1 = (x1+x0)*(y1+y0)-p2-p0
 
-  p3 = bignum_sub(p3, p1)
-  p3 = bignum_sub(p3, p2)
-  p1 = bignum_lshiftAtoms(p1, m * 2)
-  p3 = bignum_lshiftAtoms(p3, m)
-  p3 = bignum_add(p3, p1)
-  p3 = bignum_add(p3, p2)
-  return p3
+  p2 = bignum_lshiftAtoms(p2, m * 2)
+  p1 = bignum_lshiftAtoms(p1, m)
+  p0 = bignum_add(p0, p1)
+  p0 = bignum_add(p0, p2)
+
+  return p0
 }
 
 # Base Multiplacation.
@@ -368,21 +372,27 @@ function bignum_bmul(a, b,
 
 # Left shift 'bignum' of 'n' atoms. Low-level function used by bignum_lshift.
 # Exploit the internal representation to go faster.
-function bignum_lshiftAtoms(bignum, n){
-  while(n--)
-    sub("^bignum *[^ ]*", "& 0", bignum)
+function bignum_lshiftAtoms(bignum, n,    i, t, t2){
+  t = " 0"
+  for (i=1; i<=n; i*=2) {
+    if (and(i, n))
+      t2 = t2 t
+    t = t t
+  }
+  sub("^bignum +[^ ]+", "&" t2, bignum)
   return bignum
 }
 
 # Right shift 'bignum' of 'n' atoms. Low-level function used by bignum_lshift
 # Exploit the internal representation to go faster.
-function bignum_rshiftAtoms(bignum, n,
-  tmp){
-  tmp = bignum
-  if(!sub("^bignum *[^ ]*( +[^ ]+){" i "}", "", bignum))
-    return "bignum 0 0"
-  sub("^bignum *[^ ]*", "", tmp)
-  return tmp
+function bignum_rshiftAtoms(bignum, n,    i, pos) {
+  for (i=10; n-->0; n--) {
+    pos = index(substr(bignum, i), " ")
+    i += pos
+    if (!pos)
+      return "bignum 0 0"
+  }
+  return substr(bignum, 1, 9) substr(bignum, i)
 }
 
 # Left shift 'bignum' of 'n' bits. Low-level function used by bignum_lshift
@@ -633,10 +643,8 @@ function bignum_divqr(n, d,
   res){
   n = bignum__treat(n)
   d = bignum__treat(d)
-  if(bignum_iszero(d)){
-    print "Error: Division by zero"
-    return
-  }
+  if(bignum_iszero(d))
+    bignum__alert("Error: Division by zero")
   split(bignum_rawDiv(n, d), res, "|")
   res[1] = bignum_setsign(res[1], xor(bignum_sign(n), bignum_sign(d)))
   res[2] = bignum_setsign(res[2], bignum_sign(n))
@@ -733,7 +741,31 @@ function bignum_powm(b, e, m,
 # greater than 'n'. If it is greater we don't set the bit, otherwise
 # we set it. In order to avoid to compute guess*guess a trick
 # is used, so only addition and shifting are really required.
-function bignum_sqrt(n){
+function bignum_sqrt(n,
+  i, b){
+  n = bignum__treat(n)
+  if(n ~ /^bignum 1/)
+    bignum__alert("Square root of a negative number")
+  i = int((bignum_bits(n)-1)/2)+1
+  # b: bit to set to get 2^i*2^i
+  # r: guess
+  # x: guess^2
+  # s: guess^2 backup
+  # t: intermediate result
+  b = i*2
+  r = x = s = t = bignum_zero()
+  for(; i>=0; i--){
+    t = bignum_setbit(t, b)
+    x = bignum_rawAdd(s, t)
+    t = bignum_clearbit(t, b)
+    if(bignum_abscmp(x,n)<=0){
+      s = x
+      r = bignum_setbit(r, i)
+      t = bignum_setbit(t, b+1)
+    }
+    b-=2
+  }
+  return r
 }
 
 ################################ Random Number ################################
@@ -762,10 +794,8 @@ function bignum_tostr(z, base,
   str, sign, t, qr){
   if(base=="")
     base=10
-  if(length(bignum_cset) < base){
-    print "Error: base too big for string conversion"
-    return
-  }
+  if(length(bignum_cset) < base)
+    bignum__alert("Error: base too big for string conversion")
   if(bignum_iszero(z))
     return 0
   sign = bignum_sign(z)
@@ -801,18 +831,14 @@ function bignum_fromstr(str, base,
     } else
       base = 10
   }
-  if(length(bignum_cset) < base){
-    print "Error: base too big for string conversion"
-    return
-  }
+  if(length(bignum_cset) < base)
+    bignum__alert("Error: base too big for string conversion")
   bigbase = "bignum 0 " base	# build a bignum with the base value
   z = "bignum 0 0"
   for(i = 1; i <= length(str); i++){
     digitval = index(bignum_cset, substr(str, i, 1))
-    if(!digitval){
-      print "Error: Illegal char " substr(str, i, 1) " for base " base
-      return
-    }
+    if(!digitval)
+      bignum__alert("Error: Illegal char " substr(str, i, 1) " for base " base)
     z = bignum_mul(z, bigbase)
     z = bignum_rawAdd(z, "bignum 0 " (digitval - 1))
   }
@@ -831,7 +857,7 @@ function bignum__treat(num,
     return "bignum 0 1"
   if(num ~ /^-?([0Oob]x)?[0-9]+/)
     return bignum_fromstr(num)
-  print "Error: Invalid bignum number", num
+  bignum__alert("Error: Invalid bignum number" OFS num)
 }
 
 function bignum__dumpArray(arr,
@@ -867,3 +893,7 @@ function bignum_arrayToList(arr_r,
   return r
 }
 
+function bignum__alert(string){
+  print string
+  exit
+}

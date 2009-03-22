@@ -87,6 +87,21 @@ function test_convert(){
     ", " ok(bignum_tostr(bignum_fromstr("2111276481425643500000000000000000000000000000000000000000000000000000000000000000"))=="2111276481425643500000000000000000000000000000000000000000000000000000000000000000")
 }
 
+function test_mod(n,    i, m) {
+  if (n == "")
+    n = 10 + (LONG ? 5 : 0)
+  i = 13
+  while (bignum_eq(1, bignum_mod(i, 12))) {
+    i = bignum_mul(i, i)
+    #i = bignum_mul(i, 13)
+    if (n-- < 2)
+      return ok(1)
+  }
+  print "failed: " bignum_tostr(i) " % 12 != 1"
+  print "internal data representation: " i
+  return ok(0)
+}
+
 BEGIN {
   print "Test fromstr: " test_fromstr()
   print "Test add: " test_add()
@@ -96,5 +111,6 @@ BEGIN {
   }
   print "Test convert: " test_convert()
   print "Test div: " test_div()
+  print "Test mod: " test_mod()
   print "Test prime1: " test_prime1(2133)
 }
