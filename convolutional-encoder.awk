@@ -80,36 +80,81 @@ function run_step(circuit, INP, STATES,    i, tmp, OP, n, STK, iter, res) {
   return res
 }
 
+# 7/5 = (1+D+D^2)/(1+D^2)
+function G_to_circuit(p, q,     c, deg, i, bit0) {
+  deg = int(log(p<q ? p : q)/log(2))
+  for (i=2; i<=deg; i++) {
+    c = c "/d"(i-1)" rcl /d"i" sto "
+  }
+  c = c "/d input dup out"
+  for (i=1; i<=deg; i++) {
+    q = int(q / 2)
+    if (int(q % 2))
+      c = c " /d"i" rcl xor"
+  }
+  bit0 = ""
+  if (int(p % 2)) {
+    c = c " dup"
+    bit0 = " xor"
+  }
+  c = c " /d1 sto"
+  for (i=1; i<=deg; i++) {
+    p = int(p / 2)
+    if (int(p % 2)) {
+      c = c " /d"i" rcl" bit0
+      bit0 = " xor"
+    }
+  }
+  c = c " out"
+  return c
+}
+
 BEGIN {
-# The ten-year-old turbo codes are entering into service:
-# http://www-elec.enst-bretagne.fr/equipe/berrou/com_mag_berrou.pdf
-nrnsc_a = "/d input /d1 sto " \
-	"/d1 rcl /d2 sto " \
-	"/d2 rcl /d3 sto " \
-	"/d input /d1 rcl xor /d3 rcl xor out " \
-	"/d input /d2 rcl xor /d3 rcl xor out"
-rsc_b = "/d input dup out " \
-	"/a1 rcl xor /a3 rcl xor dup /a1 sto " \
-	"/a2 rcl xor /a3 rcl xor out " \
-	"/a1 rcl /a2 sto " \
-	"/a2 rcl /a3 sto"
-# http://en.wikipedia.org/wiki/File:Convolutional_encoder.png
-nrnsc_1 = "/d input /m1 sto " \
-	"/m1 rcl /m0 sto " \
-	"/m0 rcl /m1 sto " \
-	"/m1 rcl /m0 rcl /m-1 rcl xor xor out " \
-	"/m0 rcl /m-1 rcl xor out " \
-	"/m1 rcl /m-1 rcl xor out"
-# http://en.wikipedia.org/wiki/File:Convolutional_encoder_recursive.svg
-rsc_2 = "/r1 rcl /r2 sto " \
-	"/r2 rcl /r3 sto " \
-	"/d input /r2 rcl /r3 rcl xor xor dup /r1 sto " \
-	"/r1 rcl xor /r3 xor out " \
-	"/d input out "
+  # The ten-year-old turbo codes are entering into service:
+  # http://www-elec.enst-bretagne.fr/equipe/berrou/com_mag_berrou.pdf
+  nrnsc_a = "/d input /d1 sto " \
+	  "/d1 rcl /d2 sto " \
+	  "/d2 rcl /d3 sto " \
+	  "/d input /d1 rcl xor /d3 rcl xor out " \
+	  "/d input /d2 rcl xor /d3 rcl xor out"
+  rsc_b = "/d input dup out " \
+	  "/a1 rcl xor /a3 rcl xor dup /a1 sto " \
+	  "/a2 rcl xor /a3 rcl xor out " \
+	  "/a1 rcl /a2 sto " \
+	  "/a2 rcl /a3 sto"
+  # http://en.wikipedia.org/wiki/File:Convolutional_encoder.png
+  nrnsc_1 = "/d input /m1 sto " \
+	  "/m1 rcl /m0 sto " \
+	  "/m0 rcl /m1 sto " \
+	  "/m1 rcl /m0 rcl /m-1 rcl xor xor out " \
+	  "/m0 rcl /m-1 rcl xor out " \
+	  "/m1 rcl /m-1 rcl xor out"
+  # http://en.wikipedia.org/wiki/File:Convolutional_encoder_recursive.svg
+  rsc_2 = "/r1 rcl /r2 sto " \
+	  "/r2 rcl /r3 sto " \
+	  "/d input /r2 rcl /r3 rcl xor xor dup /r1 sto " \
+	  "/r1 rcl xor /r3 xor out " \
+	  "/d input out"
+  # Coding Theory: The essentials - D.G Hoffman
+  hoffman_sr_1 = "/d input /X0 sto " \
+	  "/X0 rcl /X1 sto " \
+	  "/X1 rcl /X2 sto " \
+	  "/X2 rcl /X3 sto " \
+	  "/X0 rcl /X1 rcl xor /X3 rcl xor out"
+  hoffman_fsr_1 = "/d input /X2 rcl xor /X0 sto " \
+	  "/X0 rcl /X2 rcl xor /X1 sto " \
+	  "/X1 rcl /X2 sto " \
+	  "/X2 rcl out"
+  # Other binary recursive systematic codes given by their rational
+  # functions written with two numbers whose coefficients are their
+  # binary representation:
+  #circuit = G_to_circuit(021, 037)
+  #circuit = G_to_circuit(01, 013)
+  circuit = G_to_circuit(07, 05)
+  print "Circuit:", circuit
 }
 
 {
-  circuit = rsc_b
   for (i=1; i<=NF; i++) {
     INPUT["/d"] = $i
     print run_step(circuit, INPUT, Q)
