@@ -1,9 +1,26 @@
 #!/usr/bin/awk -f
 
+# Simple 6502 disassembler written in awk.
+# Copyright (C) 2010  Francisco Castro <fcr@adinet.com.uy>
+
 # Use with:
-# echo hex code to disassembly | ./disasm.awk -v org=DecimalNum -v list=myfile
-# Or: od -t x1 program.bin | sed 's/^[^ ]*//' | ./disawk ...
+#   echo hex code to disassembly | ./disasm.awk -v org=DecimalNum -v list=myfile
+# Or alternatively to disassemble a binary file:
+#   od -t x1 program.bin | sed 's/^[^ ]*//' | ./disawk ...
 # Or just send hex 6502 machine code to the stdin of this script.
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 BEGIN {
   hexmap = "123456789abcdef"
