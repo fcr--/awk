@@ -93,6 +93,18 @@ function int8(n) {
   return (int(n)%256+384)%256-128
 }
 
+function get_symbols(addr, SYMBOLS,     str) {
+  if ((addr-1) in SYMBOLS) {
+    str = SYMBOLS[addr-1]
+    gsub(/[^ ]+/, "[&+1]", str)
+  }
+  if (addr in SYMBOLS) {
+    str = str SYMBOLS[addr]
+  }
+  gsub(/ /, "=", str)
+  return str
+}
+
 function print_line(org, BYTES, SYMBOLS, name, sz, format,     i, bytes, params) {
   params = bytes = ""
   for (i=0; i<sz; i++) {
@@ -101,31 +113,30 @@ function print_line(org, BYTES, SYMBOLS, name, sz, format,     i, bytes, params)
   if (format == "imm") {
     params = sprintf(" #$%02X", BYTES[org+1])
   } else if (format == "zpa") {
-    params = sprintf(" $%02X", BYTES[org+1])
+    params = sprintf(" %s$%02X", get_symbols(BYTES[org+1], SYMBOLS), BYTES[org+1])
   } else if (format == "zpx") {
-    params = sprintf(" $%02X,X", BYTES[org+1])
+    params = sprintf(" %s$%02X,X", get_symbols(BYTES[org+1], SYMBOLS), BYTES[org+1])
   } else if (format == "zpy") {
-    params = sprintf(" $%02X,Y", BYTES[org+1])
+    params = sprintf(" %s$%02X,Y", get_symbols(BYTES[org+1], SYMBOLS), BYTES[org+1])
   } else if (format == "izx") {
-    params = sprintf(" ($%02X,X)", BYTES[org+1])
+    params = sprintf(" (%s$%02X,X)", get_symbols(BYTES[org+1], SYMBOLS), BYTES[org+1])
   } else if (format == "izy") {
-    params = sprintf(" ($%02X),Y", BYTES[org+1])
+    params = sprintf(" (%s$%02X),Y", get_symbols(BYTES[org+1], SYMBOLS), BYTES[org+1])
   } else if (format == "abs") {
-    params = sprintf(" $%04X", BYTES[org+1] + 256*BYTES[org+2])
+    i = BYTES[org+1] + 256*BYTES[org+2]
+    params = sprintf(" %s$%04X", get_symbols(i, SYMBOLS), i)
   } else if (format == "abx") {
-    params = sprintf(" $%04X,X", BYTES[org+1] + 256*BYTES[org+2])
+    i = BYTES[org+1] + 256*BYTES[org+2]
+    params = sprintf(" %s$%04X,X", get_symbols(i, SYMBOLS), i)
   } else if (format == "aby") {
-    params = sprintf(" $%04X,Y", BYTES[org+1] + 256*BYTES[org+2])
+    i = BYTES[org+1] + 256*BYTES[org+2]
+    params = sprintf(" %s$%04X,Y", get_symbols(i, SYMBOLS), i)
   } else if (format == "ind") {
-    params = sprintf(" ($%04X)", BYTES[org+1] + 256*BYTES[org+2])
+    i = BYTES[org+1] + 256*BYTES[org+2]
+    params = sprintf(" (%s$%04X)", get_symbols(i, SYMBOLS), i)
   } else if (format == "rel") {
     i = uint16(org + 2 + int8(BYTES[org+1]))
-    if (i in SYMBOLS) {
-      params = SYMBOLS[i]
-      sub(/ .*/, "", params)
-      params = " " params
-    } else
-      params = sprintf(" $%04X", i)
+    params = sprintf(" %s$%04X", get_symbols(i, SYMBOLS), i)
   }
   printf "%04X  %-9s   %s\n", org, bytes, name params
 }
