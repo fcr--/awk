@@ -447,19 +447,20 @@ function yapegic_gen(text, margin, RES, n, nname,
   matched = substr(text, start, end - start)
   ch_count = split(tget(RES, n, "children"), CH, " ")
   if (report == "expr") {
-    res = "gen_grammar(G,     "
+    res = margin "gen_grammar(G,     "
     for (ch = 1; ch <= ch_count; ch+=2) {
       t1 = yapegic_gen(text, margin"  ", RES, CH[ch])
       res = res (ch==1?"":", ") t1
-      t2 = t2 margin t1 " = tnew()\n"
+      t2 = t2 margin "  " t1 " = tnew()\n"
     }
     res = res ") {\n" t2
     for (ch = 1; ch <= ch_count; ch+=2) {
       t1 = yapegic_gen(text, margin"  ", RES, CH[ch])
-      res = res margin yapegic_gen(text, margin"  ", RES, CH[ch+1], t1) "\n" \
-	  margin "tset(G, " t1 ", \"report\", \"" t1 "\")\n"
+      res = res margin "  " yapegic_gen(text, margin"    ", RES, CH[ch+1], t1) "\n" \
+	  margin "  tset(G, " t1 ", \"report\", \"" t1 "\")\n"
     }
-    res = res "}"
+    res = res margin "  return " yapegic_gen(text, margin"  ", RES, CH[1]) "\n" \
+	margin "}"
     return res
   } else if (report == "nt") {
     return matched
@@ -530,7 +531,7 @@ function yapegic(text,     G, RES, esc) {
     #dump_res(RES, RES["res"])
 
     # Just call the generator:
-    return yapegic_gen(text, "  ", RES, RES["res"])
+    return yapegic_gen(text, "", RES, RES["res"])
 
   } else {
     esc = sprintf("%c", 27)
