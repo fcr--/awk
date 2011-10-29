@@ -1,0 +1,7 @@
+# This example matches "abc", "aabbcc" "aaabbbccc" ...
+# In general: {a^n.b^n.c^n / n>1}
+
+S = &(A 'c') 'a'+ B !.;
+A = 'a' A? 'b';
+B = 'b' B? 'c';
+

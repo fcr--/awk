@@ -1,0 +1,12 @@
+# This is a common example for arithmetic expressions.
+
+# !. means that the expression must not have any leading text. In other words,
+# it fails if there's text following the expression (which would probably
+# happen on syntax errors) That's why it's generally a good idea to add this
+# pattern.
+all = expr !.;
+
+expr = summand (('+' / '-') summand)*;
+summand = factor (('*' / '/') factor)*;
+factor = '(' expr ')' / number;
+number = '-'? ('0'..'9' +);
