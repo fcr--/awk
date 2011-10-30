@@ -253,3 +253,11 @@ function dump_res(RES, n, margin,     ch_count, ch, CH, r) {
     dump_res(RES, CH[ch], margin "  ")
 }
 #@end_delete_on_simplify
+
+function print_error_res(RES,     esc) {
+  esc = sprintf("%c", 27)
+  print "failed at char", RES["fail"] ":\n\n" \
+      substr(RES["text"], 1, RES["fail"]-1) esc "[7m" \
+      substr(RES["text"], RES["fail"], 1) esc "[0m" \
+      substr(RES["text"], RES["fail"]+1)
+}

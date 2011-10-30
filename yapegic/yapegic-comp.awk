@@ -168,7 +168,7 @@ function yapegic_gen(text, margin, RES, n, nname,
     for (ch = 1; ch <= ch_count; ch+=2) {
       t1 = yapegic_gen(text, margin"  ", RES, CH[ch])
       res = res "" (ch==1?"":", ") t1
-      t2 = t2 margin "  " t1 " = tnew()\n"
+      t2 = t2 margin "  " t1 " = tnew(G)\n"
     }
     res = res ") {\n" t2
     for (ch = 1; ch <= ch_count; ch+=2) {
@@ -253,11 +253,7 @@ function yapegic(text,     G, RES, esc) {
     return yapegic_gen(text, "", RES, RES["res"])
 
   } else {
-    esc = sprintf("%c", 27)
-    print "failed at char", RES["fail"] ":\n\n" \
-	substr(text, 1, RES["fail"]-1) esc "[7m" \
-	substr(text, RES["fail"], 1) esc "[0m" \
-	substr(text, RES["fail"]+1)
+    print_error_res(RES)
     return ""
   }
 }
