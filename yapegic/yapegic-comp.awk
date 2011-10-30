@@ -5,22 +5,26 @@
 ##
 
 function peg_parse(GRAM, root, RES,     s, i, r, n) {
-  s = ++peg_parse_stack
+  #s = ++peg_parse_stack
   i = RES["i"]
   r = peg_parse2(GRAM, root, RES)
   # If it was successful, add the remaining information to the resulting
   # concrete parsing tree:
   if (r) {
-    tset(RES, RES["res"], "type", tget(GRAM, root, "type"))
-    if (tisset(GRAM, root, "report"))
+    if (tisset(GRAM, root, "report")) {
+      tset(RES, RES["res"], "type", tget(GRAM, root, "type"))
+      tset(RES, RES["res"], "start", i)
+      tset(RES, RES["res"], "end", RES["i"])
       tset(RES, RES["res"], "report", tget(GRAM, root, "report"))
-    tset(RES, RES["res"], "start", i)
-    tset(RES, RES["res"], "end", RES["i"])
+      # Running early tflattenres is an important memory optimization.
+      # you may disable this if you really need the unflattened tree.
+      tflattenres(RES, RES["res"])
+    }
   } else {
     if (i > RES["fail"])
       RES["fail"] = i
   }
-  peg_parse_stack = s-1
+  #peg_parse_stack = s-1
   return r
 }
 
@@ -72,7 +76,7 @@ function peg_parse2(GRAM, root, RES,     c, len, type, i, ch, CH, ch_count, s, r
       return 1
     }
     RES["i"] = i
-    tdelres(RES, RES["res"])
+    tdelres(RES, RES["res"]) #@delete_on_simplify
     return 0
   } else if (type == "opt") {
     ch = tget(GRAM, root, "child")
@@ -107,8 +111,8 @@ function peg_parse2(GRAM, root, RES,     c, len, type, i, ch, CH, ch_count, s, r
       if (!peg_parse(GRAM, CH[ch], RES)) {
 	RES["i"] = i # roll back
 	# destroy previous children
-	while (--ch > 0)
-	  tdelres(RES, CH[ch, "res"])
+	while (--ch > 0) #@delete_on_simplify
+	  tdelres(RES, CH[ch, "res"]) #@delete_on_simplify
 	return 0
       }
       # we need to store our children results:
@@ -168,33 +172,24 @@ function tisset(T, n, k) {
 ## HELPER FUNCTION FOR RAW PEG GRAMMAR CREATION:
 ##
 
-function tpeg(GRAM, type, a1, a2, a3,     n) {
-  n = tnew(GRAM)
-  return tpeg_node(GRAM, n, type, a1, a2, a3)
+function tpeg(G, type, a1, a2,     n) {
+  n = tnew(G)
+  return tpeg_node(G, n, type, a1, a2)
 }
 
-function tpeg_node(GRAM, n, type, a1, a2, a3) {
-  tset(GRAM, n, "type", type)
+function tpeg_node(G, n, type, a1, a2) {
+  tset(G, n, "type", type)
   # we change semantics of a1..a3 according to type:
   if (type == "string") {
-    tset(GRAM, n, "str", a1)
+    tset(G, n, "str", a1)
   } else if (type == "range") {
-    tset(GRAM, n, "from", a1)
-    tset(GRAM, n, "to", a2)
-  } else if (type == "posla") {
-    tset(GRAM, n, "child", a1)
-  } else if (type == "negla") {
-    tset(GRAM, n, "child", a1)
-  } else if (type == "opt") {
-    tset(GRAM, n, "child", a1)
-  } else if (type == "aster") {
-    tset(GRAM, n, "child", a1)
-  } else if (type == "plus") {
-    tset(GRAM, n, "child", a1)
-  } else if (type == "cat") {
-    tset(GRAM, n, "children", a1)
-  } else if (type == "alt") {
-    tset(GRAM, n, "children", a1)
+    tset(G, n, "from", a1)
+    tset(G, n, "to", a2)
+  } else if (type == "posla" || type == "negla" || \
+	 type == "opt" || type == "aster" || type == "plus") {
+    tset(G, n, "child", a1)
+  } else if (type == "cat" || type == "alt") {
+    tset(G, n, "children", a1)
   } else if (type == "dot") {
     # no args
   } else {
@@ -208,6 +203,7 @@ function tpeg_node(GRAM, n, type, a1, a2, a3) {
 ## FUNCTIONS FOR PROCESSING THE CONCRETE SYNTAX TREE
 ##
 
+#@begin_delete_on_simplify
 function tdelres(T, n,     drs, ch_count, ch, CH) {
   drs++
   if (drs>1000) {
@@ -225,8 +221,8 @@ function tdelres(T, n,     drs, ch_count, ch, CH) {
   delete T[n, "type"]
   delete T[n, "start"]
   delete T[n, "end"]
-  delete T[n]
 }
+#@end_delete_on_simplify
 
 function tflattenres(T, n,     not_top, cs, ch_count, ch, CH) {
   if (tisset(T, n, "report") || !not_top) {
@@ -235,7 +231,7 @@ function tflattenres(T, n,     not_top, cs, ch_count, ch, CH) {
       cs = cs " " tflattenres(T, CH[ch], 1)
     sub(/^ +/, "", cs)
     sub(/ +$/, "", cs)
-    gsub(/  +$/, " ", cs)
+    gsub(/  +/, " ", cs)
     tset(T, n, "children", cs)
     return n
   } else {
@@ -243,6 +239,7 @@ function tflattenres(T, n,     not_top, cs, ch_count, ch, CH) {
     ch_count = split(tget(T, n, "children"), CH, " ")
     for (ch = 1; ch <= ch_count; ch++)
       cs = cs " " tflattenres(T, CH[ch], 1)
+    delete T[n, "children"]
     return cs
   }
 }
@@ -261,7 +258,7 @@ function dump_res(RES, n, margin,     ch_count, ch, CH, r) {
 ## GRAMMAR FOR STANDARD PEG GRAMMAR!
 ##
 
-function peg_peg_grammar(G,     n1, n2, n3,
+function peg_peg_grammar(G,     n, m,
 	expr, alt, cat, la, negla, posla, cuant, cuantopt, cuantaster,
 	cuantplus, atom, range, char, str, nt, dot, blanks, anychar) {
   expr = tnew(G)
@@ -271,9 +268,6 @@ function peg_peg_grammar(G,     n1, n2, n3,
   negla = tnew(G)
   posla = tnew(G)
   cuant = tnew(G)
-  cuantopt = tnew(G)
-  cuantaster = tnew(G)
-  cuantplus = tnew(G)
   atom = tnew(G)
   range = tnew(G)
   char = tnew(G)
@@ -283,39 +277,39 @@ function peg_peg_grammar(G,     n1, n2, n3,
   blanks = tnew(G)
   anychar = tpeg(G, "dot")
 
+  # cuantopt = '?'
+  cuantopt =   tpeg(G, "string", "?")
+  tset(G, cuantopt, "report", "cuantopt")
+
+  # cuantaster = '*'
+  cuantaster = tpeg(G, "string", "*")
+  tset(G, cuantaster, "report", "cuantaster")
+
+  # cuantplus = '+'
+  cuantplus =  tpeg(G, "string", "+")
+  tset(G, cuantplus, "report", "cuantplus")
+
   # expr = (blanks nt blanks '=' blanks alt ';')+ blanks !.
-  n1 = tpeg(G, "plus", \
+  n = tpeg(G, "plus", \
 	tpeg(G, "cat", blanks " " nt " " blanks " " \
 		tpeg(G, "string", "=") " " blanks " " alt " " \
 		tpeg(G, "string", ";")))
-  n2 = tpeg(G, "negla", anychar)
+  m = tpeg(G, "negla", anychar)
   
   tset(G, expr, "type", "cat")
-  tset(G, expr, "children", n1 " " blanks " " n2)
+  tset(G, expr, "children", n " " blanks " " m)
   tset(G, expr, "report", "expr")
 
   # alt = cat blanks ('/' blanks cat blanks)*
-  n1 = tnew(G)
-  tset(G, n1, "type", "string")
-  tset(G, n1, "str", "/")
-  n2 = tnew(G)
-  tset(G, n2, "type", "cat")
-  tset(G, n2, "children", n1 " " blanks " " cat " " blanks)
-  n3 = tnew(G)
-  tset(G, n3, "type", "aster")
-  tset(G, n3, "child", n2)
+  n = tpeg(G, "cat", tpeg(G, "string", "/") " " blanks " " cat " " blanks)
 
   tset(G, alt, "type", "cat")
-  tset(G, alt, "children", cat " " blanks " " n3)
+  tset(G, alt, "children", cat " " blanks " " tpeg(G, "aster", n))
   tset(G, alt, "report", "alt")
 
   # cat = (la blanks)+; # use "" for epsilon productions
-  n1 = tnew(G)
-  tset(G, n1, "type", "cat")
-  tset(G, n1, "children", la " " blanks)
-
   tset(G, cat, "type", "plus")
-  tset(G, cat, "child", n1)
+  tset(G, cat, "child", tpeg(G, "cat", la " " blanks))
   tset(G, cat, "report", "cat")
 
   # la = negla / posla / cuant;
@@ -334,80 +328,57 @@ function peg_peg_grammar(G,     n1, n2, n3,
   tset(G, posla, "report", "posla")
 
   # cuant = atom blanks (cuantopt / cuantaster / cuantplus)?;
-  n1 = tpeg(G, "opt", tpeg(G, "alt", cuantopt " " cuantaster " " cuantplus))
+  n = tpeg(G, "opt", tpeg(G, "alt", cuantopt " " cuantaster " " cuantplus))
 
   tset(G, cuant, "type", "cat")
-  tset(G, cuant, "children", atom " " blanks " " n1)
+  tset(G, cuant, "children", atom " " blanks " " n)
   tset(G, cuant, "report", "cuant")
 
-  # cuantopt = '?';
-  tset(G, cuantopt, "type", "string")
-  tset(G, cuantopt, "str", "?")
-  tset(G, cuantopt, "report", "cuantopt")
-
-  # cuantaster = '*';
-  tset(G, cuantaster, "type", "string")
-  tset(G, cuantaster, "str", "*")
-  tset(G, cuantaster, "report", "cuantaster")
-
-  # cuantplus = '+';
-  tset(G, cuantplus, "type", "string")
-  tset(G, cuantplus, "str", "+")
-  tset(G, cuantplus, "report", "cuantplus")
-
   # atom = range / char / str / nt / '(' alt ')' / dot;
-  n1 = tpeg(G, "cat", tpeg(G, "string", "(") " " alt " " tpeg(G, "string", ")"))
+  n = tpeg(G, "cat", tpeg(G, "string", "(") " " alt " " tpeg(G, "string", ")"))
 
   tset(G, atom, "type", "alt")
-  tset(G, atom, "children", range " " char " " str " " nt " " n1 " " dot)
+  tset(G, atom, "children", range " " char " " str " " nt " " n " " dot)
   # tset(G, atom, "report", "atom") # no need to report
 
   # range = char blanks ".." blanks char;
-  n1 = tpeg(G, "string", "..")
+  n = tpeg(G, "string", "..")
 
   tset(G, range, "type", "cat")
-  tset(G, range, "children", char " " blanks " " n1 " " blanks " " char)
+  tset(G, range, "children", char " " blanks " " n " " blanks " " char)
   tset(G, range, "report", "range")
 
   # char = '\'' ('\\' . / .) '\'';
-  n1 = tnew(G)
-  tset(G, n1, "type", "string")
-  tset(G, n1, "str", "\\")
-  n2 = tnew(G)
-  tset(G, n2, "type", "cat")
-  tset(G, n2, "children", n1 " " anychar)
-  n1 = tnew(G)
-  tset(G, n1, "type", "alt")
-  tset(G, n1, "children", n2 " " anychar)
-  n2 = tnew(G)
-  tset(G, n2, "type", "string")
-  tset(G, n2, "str", "'")
+  n = tpeg(G, "alt", \
+	tpeg(G, "cat", tpeg(G, "string", "\\") " " anychar) " " \
+	anychar)
+  m = tpeg(G, "string", "'")
 
   tset(G, char, "type", "cat")
-  tset(G, char, "children", n2 " " n1 " " n2)
+  tset(G, char, "children", m " " n " " m)
   tset(G, char, "report", "char")
 
   # str = '"' ('\\' . / !'"' .)* '"';
-  n1 = tpeg(G, "string", "\"")
+  n = tpeg(G, "string", "\"")
 
-  n2 = tpeg(G, "aster", \
+  m = tpeg(G, "aster", \
 	tpeg(G, "alt", \
 		tpeg(G, "cat", tpeg(G, "string", "\\") " " anychar) " " \
-		tpeg(G, "cat", tpeg(G, "negla", n1) " " anychar)))
+		tpeg(G, "cat", tpeg(G, "negla", n) " " anychar)))
 
   tset(G, str, "type", "cat")
-  tset(G, str, "children", n1 " " n2 " " n1)
+  tset(G, str, "children", n " " m " " n)
   tset(G, str, "report", "str")
 
   # nt = ('A'..'Z' / 'a'..'z' / '_') ('A'..'Z' / 'a'..'z' / '_' / '0'..'9')*;
-  n1 = tpeg(G, "range", "A", "Z") " " \
+  n = tpeg(G, "range", "A", "Z") " " \
 	tpeg(G, "range", "a", "z") " " \
 	tpeg(G, "string", "_")
-  n2 = tpeg(G, "aster", tpeg(G, "alt", n1 " " tpeg(G, "range", "0", "9")))
-  n1 = tpeg(G, "alt", n1)
+  m = tpeg(G, "aster", tpeg(G, "alt", n " " tpeg(G, "range", "0", "9")))
+  n = tpeg(G, "alt", n)
 
   tset(G, nt, "type", "cat")
-  tset(G, nt, "children", n1 " " n2)
+  tset(G, nt, "children", n " " m)
   tset(G, nt, "report", "nt")
 
   # dot = '.';
@@ -416,7 +387,7 @@ function peg_peg_grammar(G,     n1, n2, n3,
   tset(G, dot, "report", "dot")
 
   # blanks = (' ' / '\t' / '\n' / '\v' / '\f' / '\r' / '#' (!'\n' .)*)*;  # <- comments
-  n1 = tpeg(G, "alt", 
+  n = tpeg(G, "alt", 
 	tpeg(G, "string", " ") " " \
 	tpeg(G, "range", "\t", "\r") " " \
 	tpeg(G, "cat",
@@ -428,7 +399,7 @@ function peg_peg_grammar(G,     n1, n2, n3,
 				anychar))))
 
   tset(G, blanks, "type", "aster")
-  tset(G, blanks, "child", n1)
+  tset(G, blanks, "child", n)
   #tset(G, blanks, "report", "blanks") # there's no need to report this.
 
   return expr
@@ -450,7 +421,7 @@ function yapegic_gen(text, margin, RES, n, nname,
     res = margin "gen_grammar(G,     "
     for (ch = 1; ch <= ch_count; ch+=2) {
       t1 = yapegic_gen(text, margin"  ", RES, CH[ch])
-      res = res (ch==1?"":", ") t1
+      res = res "" (ch==1?"":", ") t1
       t2 = t2 margin "  " t1 " = tnew()\n"
     }
     res = res ") {\n" t2
@@ -519,11 +490,13 @@ function yapegic(text,     G, RES, esc) {
     # print "matched, cursor left at", RES["i"] # useless in most cases
     #for (token in RES) print "RES[" token "] = «" RES[token] "»"
 
-    ## Uncomment the following line if you want to display the concrete
-    ## syntax tree:
-    #dump_res(RES, RES["res"])
+    ## If early flattening is disabled; Uncomment the following line if you
+    ## want to display the concrete syntax tree:
+    # dump_res(RES, RES["res"])
 
-    tflattenres(RES, RES["res"])
+    ## If early flattening is disabled running tflattenres may be an
+    ## important thing to do.
+    #tflattenres(RES, RES["res"])
 
     ## Uncomment the following lines if you want to display the simplified
     ## syntax tree, when non-reporting nodes are deleted:
