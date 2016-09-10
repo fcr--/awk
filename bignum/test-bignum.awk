@@ -102,6 +102,18 @@ function test_mod(n,    i, m) {
   return ok(0)
 }
 
+function test_gcd(    i, A, n, n1, n2, s){
+  n = split("28533444599 gcd 12345678901234567807 = 1," \
+      "41364871632874698215 gcd 466619276875 = 3732954215," \
+      "6 gcd 15 = 3,", A, / *[^0-9]+ */)
+  for(i=1; i<n; i+=3){
+    n1 = bignum_fromstr(A[i])
+    n2 = bignum_fromstr(A[i+1])
+    s = s (i>1?", ":"") ok(bignum_tostr(bignum_gcd(n1, n2)) == A[i+2])
+  }
+  return s
+}
+
 BEGIN {
   print "Test fromstr: " test_fromstr()
   print "Test add: " test_add()
@@ -113,4 +125,5 @@ BEGIN {
   print "Test div: " test_div()
   print "Test mod: " test_mod()
   print "Test prime1: " test_prime1(2133)
+  print "Test gcd: " test_gcd()
 }

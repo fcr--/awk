@@ -60,6 +60,10 @@ BEGIN {
   bignum_atombits = 16
   bignum_atombase = 2 ^ bignum_atombits
   bignum_atommask = bignum_atombase - 1
+
+  BIGNUM_ZERO = "bignum 0 0"
+  BIGNUM_ONE = "bignum 0 1"
+  BIGNUM_NEG_ONE = "bignum 1 1"
 }
 
 # Note: to change 'atombits' is all you need to change the
@@ -87,7 +91,7 @@ BEGIN {
 # produce 'b' with the same number of atoms as 'a'.
 function bignum_zero(value,
   v){
-  v = "bignum 0 0"
+  v = BIGNUM_ZERO
   while(value-->1)
     v = v " 0"
   return v
@@ -140,7 +144,7 @@ function bignum_setsign(bignum, sign){
 function bignum_normalize(bignum){
   sub("( 0)*$", "", bignum)
   if(bignum !~ /^bignum +[^ ]+ +[^ ]+/)
-    return "bignum 0 0"
+    return BIGNUM_ZERO
   return bignum
 }
 
@@ -390,7 +394,7 @@ function bignum_rshiftAtoms(bignum, n,    i, pos) {
     pos = index(substr(bignum, i), " ")
     i += pos
     if (!pos)
-      return "bignum 0 0"
+      return BIGNUM_ZERO
   }
   return substr(bignum, 1, 9) substr(bignum, i)
 }
@@ -596,7 +600,7 @@ function bignum_bits(bignum,
 function bignum_rawDiv(num, div,
   n, arr_num, res, arr_quo, bit, b_atom, b_bit, p){
   n = split(num, arr_num)
-  res = "bignum 0 0"
+  res = BIGNUM_ZERO
   split(bignum_zero(n), arr_quo)
   for(bit = bignum_bits(num) - 1; bit >= 0; bit--){
     b_atom = int(bit / bignum_atombits) + 3
@@ -606,7 +610,7 @@ function bignum_rawDiv(num, div,
       # Exploit the internal structure to make an OR 1, very fast in
       # terms of awk, no need to split and join it:
       p = index(substr(res, 10), " ")
-      p = (!p)? length(res) : p+9
+      p = (!p)? length(res) : p+8
       res = substr(res, 1, p-1) or(substr(res, p, 1), 1) substr(res, p+1)
     }
     if(bignum_abscmp(res, div) >= 0){
@@ -691,19 +695,18 @@ function bignum_iseven(n){
 
 # Returns b^e
 function bignum_pow(b, e,
-  one, r){
+  r){
   b = bignum__treat(b)
   e = bignum__treat(e)
-  one = "bignum 0 1"
   if(bignum_iszero(e))
-    return one
+    return BIGNUM_ONE
   # The power is negative is the base is negative and the exponent is odd
   sign = bignum_iszero(b) && bignum_isodd(e)
   # Set the base to it's abs value, i.e. make it positive
   b = bignum_setsign(b, 0)
   # Main loop
-  r = one # Start with result = 1
-  while(bignum_abscmp(e, one)>0){ # While the exp > 1
+  r = BIGNUM_ONE # Start with result = 1
+  while(bignum_abscmp(e, BIGNUM_ONE)>0){ # While the exp > 1
     if(bignum_isodd(e)){
       r = bignum_mul(r, b)
     }
@@ -721,7 +724,7 @@ function bignum_powm(b, e, m,
   e = bignum__treat(e)
   m = bignum__treat(m)
   b = bignum_mod(b, m)
-  t = "bignum 0 1"
+  t = BIGNUM_ONE
   while(!bignum_iszero(e)){
     if(bignum_isodd(e))
       t = bignum_mod(bignum_mul(t, b), m)
@@ -776,7 +779,40 @@ function bignum_rand(bits){
 
 ################################ Prime numbers ################################
 
+function bignum_gcd(a, b,
+  t){
+  a = bignum__treat(a)
+  b = bignum__treat(b)
+  while(!bignum_iszero(b)){
+    t = b
+    b = bignum_rem(a, b)
+    a = t
+  }
+  return a
+}
+
 function bignum_millerrabin(bignum, count){
+}
+
+# Find a factor using Pollard's rho method + Floyd's .
+function bignum_factor(n,
+  i1, i2, gcd){
+  n = bignum__treat(n)
+  if(bignum_iszero(n))
+    return BIGNUM_ZERO
+  if(n ~ /^bignum 1/)
+    return BIGNUM_NEG_ONE
+  gcd = i1 = i2 = BIGNUM_ONE
+  while(bignum_eq(gcd, BIGNUM_ONE)){
+    i1 = bignum_rem(bignum_rawAdd(bignum_kmul(i1, i1), BIGNUM_ONE), n)
+    i2 = bignum_rem(bignum_rawAdd(bignum_kmul(i2, i2), BIGNUM_ONE), n)
+    i2 = bignum_rem(bignum_rawAdd(bignum_kmul(i2, i2), BIGNUM_ONE), n)
+    gcd = bignum_gcd(bignum_abs(bignum_sub(i1, i2)), n)
+    print bignum_tostr(i1), bignum_tostr(i2), bignum_tostr(gcd)
+  }
+  if (bignum_eq(gcd, n))
+    return n
+  return gcd
 }
 
 ########################## Convertion to/from string ##########################
@@ -834,7 +870,7 @@ function bignum_fromstr(str, base,
   if(length(bignum_cset) < base)
     bignum__alert("Error: base too big for string conversion")
   bigbase = "bignum 0 " base	# build a bignum with the base value
-  z = "bignum 0 0"
+  z = BIGNUM_ZERO
   for(i = 1; i <= length(str); i++){
     digitval = index(bignum_cset, substr(str, i, 1))
     if(!digitval)
@@ -852,7 +888,7 @@ function bignum__treat(num,
   if(num ~ /^bignum /)
     return num
   if(num=="0")
-    return "bignum 0 0"
+    return BIGNUM_ZERO
   if(num=="1")
     return "bignum 0 1"
   if(num ~ /^-?([0Oob]x)?[0-9]+/)
