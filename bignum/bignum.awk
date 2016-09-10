@@ -683,12 +683,12 @@ function bignum_mod(n, m,
 
 # Returns true if n is odd
 function bignum_isodd(n){
-  return n ~ /^bignum +[^ ]*[13579](\>|$)/
+  return n ~ /^bignum +[01] +[^ ]*[13579]( |$)/
 }
 
 # Returns true if n is even
 function bignum_iseven(n){
-  return n ~ /^bignum +[^ ]*[02468](\>|$)/
+  return n ~ /^bignum +[01] +[^ ]*[02468]( |$)/
 }
 
 ############################ Power and Power mod N ############################
@@ -713,7 +713,7 @@ function bignum_pow(b, e,
     e = bignum_rshiftBits(e, 1) # exp = exp / 2
     b = bignum_mul(b, b)
   }
-  r = bignum_mul(r, b)
+  return bignum_mul(r, b)
 }
 
 # Fast power mod N function.
@@ -728,10 +728,10 @@ function bignum_powm(b, e, m,
   while(!bignum_iszero(e)){
     if(bignum_isodd(e))
       t = bignum_mod(bignum_mul(t, b), m)
-    x = bignum_mod(bignum_mul(x, x), m)
+    b = bignum_mod(bignum_mul(b, b), m)
     e = bignum_rshiftBits(e, 1)
   }
-  return r
+  return t
 }
 
 ################################# Square Root #################################
@@ -890,8 +890,8 @@ function bignum__treat(num,
   if(num=="0")
     return BIGNUM_ZERO
   if(num=="1")
-    return "bignum 0 1"
-  if(num ~ /^-?([0Oob]x)?[0-9]+/)
+    return BIGNUM_ONE
+  if(num ~ /^-?([0Oob]x)?[0-9]+$/)
     return bignum_fromstr(num)
   bignum__alert("Error: Invalid bignum number" OFS num)
 }
