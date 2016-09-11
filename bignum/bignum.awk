@@ -311,7 +311,7 @@ function bignum_mul(a, b){
 
 # Karatsuba Multiplication
 function bignum_kmul(a, b,
-  na, nb, arr_a, arr_b, n, nmin, m, x0, x1, y0, y1, p0, p1, p2){
+  i, na, nb, arr_a, arr_b, n, nmin, m, x0, x1, y0, y1, p0, p1, p2){
 
   na = split(a, arr_a)
   nb = split(b, arr_b)
