@@ -482,7 +482,7 @@ function bignum_setbit(bignum, n,
   len = split(bignum, arr)
   while(atom > len)
     arr[len++] = 0
-  arr[len] = or(arr[len], bit)
+  arr[atom] = or(arr[atom], bit)
   return bignum_arrayToList(arr)
 }
 
@@ -745,7 +745,7 @@ function bignum_powm(b, e, m,
 # we set it. In order to avoid to compute guess*guess a trick
 # is used, so only addition and shifting are really required.
 function bignum_sqrt(n,
-  i, b){
+  i, b, r, x, s, t){
   n = bignum__treat(n)
   if(n ~ /^bignum 1/)
     bignum__alert("Square root of a negative number")
@@ -766,6 +766,7 @@ function bignum_sqrt(n,
       r = bignum_setbit(r, i)
       t = bignum_setbit(t, b+1)
     }
+    t = bignum_rshiftBits(t, 1)
     b-=2
   }
   return r
