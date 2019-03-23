@@ -621,7 +621,7 @@ function bignum_rawDiv(num, div,
 # The procedure returns a two-elements list with the bignum quotient and
 # the remainder (that's just a number being <= of the max atom value).
 function bignum_rawDivByAtom(num, div,
-  atoms, arr_n){
+  atoms, arr_num, t, j){
   atoms = split(num, arr_num, " ") - 2
   t = 0
   for(j = atoms; j > 0; j--){
