@@ -804,10 +804,8 @@ function bignum_factor(n,
     i2 = bignum_rem(bignum_rawAdd(bignum_kmul(i2, i2), BIGNUM_ONE), n)
     i2 = bignum_rem(bignum_rawAdd(bignum_kmul(i2, i2), BIGNUM_ONE), n)
     gcd = bignum_gcd(bignum_abs(bignum_sub(i1, i2)), n)
-    print bignum_tostr(i1), bignum_tostr(i2), bignum_tostr(gcd)
+    # print bignum_tostr(i1), bignum_tostr(i2), bignum_tostr(gcd)
   }
-  if (bignum_eq(gcd, n))
-    return n
   return gcd
 }
 
