@@ -840,7 +840,7 @@ function bignum_tostr(z, base,
 
 # Create a bignum from a string representation in base 'base'.
 function bignum_fromstr(str, base,
-  sign, bigbase, digitval, z){
+  sign, bigbase, digitval, z, i){
   if(base=="")
     base=0
   sub("^ *", "", str)
