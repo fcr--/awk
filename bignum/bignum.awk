@@ -58,7 +58,7 @@
 
 BEGIN {
   bignum_atombits = 16
-  bignum_atombase = 2 ^ bignum_atombits
+  bignum_atombase = 65536  # 2 ^ bignum_atombits
   bignum_atommask = bignum_atombase - 1
 
   BIGNUM_ZERO = "bignum 0 0"
