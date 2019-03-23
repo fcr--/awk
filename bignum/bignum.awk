@@ -226,8 +226,8 @@ function bignum_rawAdd(a, b,
   car = 0
   for(j=3; j<=max; j++){
     sum = arr_a[j] + arr_b[j] + car
-    car = rshift(sum, bignum_atombits)
-    r = r " " and(sum, bignum_atommask)
+    car = bit_rshift(sum, bignum_atombits)
+    r = r " " bit_and(sum, bignum_atommask)
   }
   if(car) r = r " " car
   return bignum_normalize(r)
@@ -306,7 +306,7 @@ function bignum_mul(a, b){
   b = bignum__treat(b)
   # The sign is the xor between the two signs
   return bignum_setsign(bignum_kmul(a, b),
-			xor(bignum_sign(a), bignum_sign(b)))
+			bit_xor(bignum_sign(a), bignum_sign(b)))
 }
 
 # Karatsuba Multiplication
@@ -332,7 +332,7 @@ function bignum_kmul(a, b,
     x1 = x1 " " arr_a[i]
   for(i = m + 3; i <= nb; i++)
     y1 = y1 " " arr_b[i]
-  
+
   p2 = bignum_kmul(x1, y1)
   p1 = bignum_kmul(bignum_add(x1, x0), bignum_add(y1, y0))
   p0 = bignum_kmul(x0, y0)
@@ -363,8 +363,8 @@ function bignum_bmul(a, b,
       # can't overflow since:
       # (2^N-1)*(2^N-1)+(2^N-1)+(2^N-1) == 2^(2*N)-1
       mul = arr_a[i]*arr_b[j]+arr_r[i+j-3]+car
-      car = rshift(mul, bignum_atombits)
-      mul = and(mul, bignum_atommask)
+      car = bit_rshift(mul, bignum_atombits)
+      mul = bit_and(mul, bignum_atommask)
       arr_r[i+j-3] = mul
     }
     if(car)
@@ -379,7 +379,7 @@ function bignum_bmul(a, b,
 function bignum_lshiftAtoms(bignum, n,    i, t, t2){
   t = " 0"
   for (i=1; i<=n; i*=2) {
-    if (and(i, n))
+    if (bit_and(i, n))
       t2 = t2 t
     t = t t
   }
@@ -407,8 +407,8 @@ function bignum_lshiftBits(bignum, n,
   car = 0
   for(j=3; j <= atoms; j++){
     t = arr[j]
-    arr[j] = or(car, and(lshift(t, n), bignum_atommask))
-    car = rshift(t, bignum_atombits - n)
+    arr[j] = bit_or(car, bit_and(bit_lshift(t, n), bignum_atommask))
+    car = bit_rshift(t, bignum_atombits - n)
   }
   if(car)
     arr[atoms+1] = car
@@ -423,8 +423,8 @@ function bignum_rshiftBits(bignum, n,
   car = 0
   for(j=atoms; j >= 3; j--){
     t = arr[j]
-    arr[j] = or(car, rshift(t, n))
-    car = and(lshift(t, bignum_atombits - n), bignum_atommask)
+    arr[j] = bit_or(car, bit_rshift(t, n))
+    car = bit_and(bit_lshift(t, bignum_atombits - n), bignum_atommask)
   }
   # There's no need to normalize
   return bignum_arrayToList(arr)
@@ -458,7 +458,7 @@ function bignum_rshift(bignum, n,
 	break
       }
     if(!corr){
-      if(and(arr[atoms+3], compl(lshift(bignum_atommask, bits)) ) != 0){
+      if(bit_and(arr[atoms+3], bit_compl(bit_lshift(bignum_atommask, bits)) ) != 0){
 	corr = 1
       }
     }
@@ -478,11 +478,11 @@ function bignum_rshift(bignum, n,
 function bignum_setbit(bignum, n,
   atom, bit, len, arr){
   atom = int(n / bignum_atombits) + 3
-  bit = lshift(1, int(n % bignum_atombits))
+  bit = bit_lshift(1, int(n % bignum_atombits))
   len = split(bignum, arr)
   while(atom > len)
     arr[len++] = 0
-  arr[atom] = or(arr[atom], bit)
+  arr[atom] = bit_or(arr[atom], bit)
   return bignum_arrayToList(arr)
 }
 
@@ -493,8 +493,8 @@ function bignum_clearbit(bignum, n,
   len = split(bignum, arr)
   if(atom > len)
     return bignum
-  mask = xor(bignum_atommask, lshift(1, int(n % bignum_atombits)))
-  arr[atom] = and(arr[atom], mask)
+  mask = bit_xor(bignum_atommask, bit_lshift(1, int(n % bignum_atombits)))
+  arr[atom] = bit_and(arr[atom], mask)
   return bignum_arrayToList(arr)
 }
 
@@ -504,8 +504,8 @@ function bignum_testbit(bignum, n){
   len = split(bignum, arr)
   if(atom > len)
     return 0
-  mask = lshift(1, int(n % bignum_atombits))
-  return and(arr[atom], mask) != 0
+  mask = bit_lshift(1, int(n % bignum_atombits))
+  return bit_and(arr[atom], mask) != 0
 }
 
 # does bitwise AND between a and b
@@ -523,7 +523,7 @@ function bignum_bitand(a, b,
   for(j=nb + 1; j <= na; j++) arr_b[j] = 0
   n = na>nb ? na : nb
   for(j=3; j <= n; j++)
-    r = r " " and(arr_a[j], arr_b[j])
+    r = r " " bit_and(arr_a[j], arr_b[j])
   return bignum_normalize(r)
 }
 
@@ -538,7 +538,7 @@ function bignum_bitxor(a, b,
   for(j=nb + 1; j <= na; j++) arr_b[j] = 0
   n = na>nb ? na : nb
   for(j=3; j <= n; j++)
-    r = r " " xor(arr_a[j], arr_b[j])
+    r = r " " bit_xor(arr_a[j], arr_b[j])
   return bignum_normalize(r)
 }
 
@@ -553,7 +553,7 @@ function bignum_bitor(a, b,
   for(j=nb + 1; j <= na; j++) arr_b[j] = 0
   n = na>nb ? na : nb
   for(j=3; j <= n; j++)
-    r = r " " or(arr_a[j], arr_b[j])
+    r = r " " bit_or(arr_a[j], arr_b[j])
   return bignum_normalize(r)
 }
 
@@ -563,7 +563,7 @@ function bignum_bits(bignum,
   bits = (bignum_atoms(bignum) - 1)*bignum_atombits
   sub(/.* /, "", bignum)
   while(0 != bignum){
-    bignum = rshift(bignum, 1)
+    bignum = bit_rshift(bignum, 1)
     bits++
   }
   return bits
@@ -604,18 +604,18 @@ function bignum_rawDiv(num, div,
   split(bignum_zero(n), arr_quo)
   for(bit = bignum_bits(num) - 1; bit >= 0; bit--){
     b_atom = int(bit / bignum_atombits) + 3
-    b_bit = lshift(1, and(bit, bignum_atombits - 1))
+    b_bit = bit_lshift(1, bit_and(bit, bignum_atombits - 1))
     res = bignum_lshiftBits(res, 1)
-    if(and(arr_num[b_atom], b_bit)){
+    if(bit_and(arr_num[b_atom], b_bit)){
       # Exploit the internal structure to make an OR 1, very fast in
       # terms of awk, no need to split and join it:
       p = index(substr(res, 10), " ")
       p = (!p)? length(res) : p+8
-      res = substr(res, 1, p-1) or(substr(res, p, 1), 1) substr(res, p+1)
+      res = substr(res, 1, p-1) bit_or(substr(res, p, 1), 1) substr(res, p+1)
     }
     if(bignum_abscmp(res, div) >= 0){
       res = bignum_rawSub(res, div)
-      arr_quo[b_atom] = or(arr_quo[b_atom], b_bit)
+      arr_quo[b_atom] = bit_or(arr_quo[b_atom], b_bit)
     }
   }
   # There's no need to normalize
@@ -630,7 +630,7 @@ function bignum_rawDivByAtom(num, div,
   atoms = split(num, arr_num) - 2
   t = 0
   for(j = atoms; j > 0; j--){
-    t = lshift(t, bignum_atombits) + arr_num[j+2]
+    t = bit_lshift(t, bignum_atombits) + arr_num[j+2]
     arr_num[j+2] = int(t / div)
     t = int(t % div)
   }
@@ -650,7 +650,7 @@ function bignum_divqr(n, d,
   if(bignum_iszero(d))
     bignum__alert("Error: Division by zero")
   split(bignum_rawDiv(n, d), res, "|")
-  res[1] = bignum_setsign(res[1], xor(bignum_sign(n), bignum_sign(d)))
+  res[1] = bignum_setsign(res[1], bit_xor(bignum_sign(n), bignum_sign(d)))
   res[2] = bignum_setsign(res[2], bignum_sign(n))
   return res[1] "|" res[2]
 }
