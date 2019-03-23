@@ -493,7 +493,8 @@ function bignum_clearbit(bignum, n,
 }
 
 # Test the bit 'n' of 'bignum'. Returns 1 if the bit is set.
-function bignum_testbit(bignum, n){
+function bignum_testbit(bignum, n
+  atom, arr, len, mask){
   atom = int(n / bignum_atombits) + 3
   len = split(bignum, arr)
   if(atom > len)
