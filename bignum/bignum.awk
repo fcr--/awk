@@ -445,30 +445,24 @@ function bignum_lshift(bignum, n,
 
 # Right shift 'bignum' of 'n' bits.
 function bignum_rshift(bignum, n,
-  atoms, bits, corr, j){
+  atoms, bits, corr, j, arr) {
   bignum = bignum__treat(bignum)
+  split(bignum, arr, " ")
   atoms = int(n / bignum_atombits)
   bits = int(n % bignum_atombits)
-  # correct for "arithmetic shift" - signed integer:
   corr = 0
-  if(bignum_sign(bignum)==1){
-    for(j=atoms+2; j>=3; j++)
-      if(arr[j]!=0){
-	corr = 1
-	break
-      }
-    if(!corr){
-      if(bit_and(arr[atoms+3], bit_compl(bit_lshift(bignum_atommask, bits)) ) != 0){
-	corr = 1
+  if(bignum_sign(bignum) == 1) {
+    for(j = atoms + 2; j >= 3; j--) {
+      if(arr[j] != 0) {
+        corr = 1
+        break
       }
     }
+    if(!corr && bit_and(arr[atoms + 3], bit_compl(bit_lshift(bignum_atommask, bits))) != 0) corr = 1
   }
-  if(atoms)
-    bignum = bignum_lshiftAtoms(bignum, atoms)
-  if(bits)
-    bignum = bignum_lshiftBits(bignum, bits)
-  if(corr)
-    bignum = bignum_sub(bignum, 1)
+  if(atoms) bignum = bignum_rshiftAtoms(bignum, atoms)
+  if(bits) bignum = bignum_rshiftBits(bignum, bits)
+  if(corr) bignum = bignum_sub(bignum, 1)
   return bignum
 }
 
