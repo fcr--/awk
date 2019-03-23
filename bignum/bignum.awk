@@ -690,13 +690,13 @@ function bignum_iseven(n){
 
 # Returns b^e
 function bignum_pow(b, e,
-  r){
+  sign, r){
   b = bignum__treat(b)
   e = bignum__treat(e)
   if(bignum_iszero(e))
     return BIGNUM_ONE
   # The power is negative is the base is negative and the exponent is odd
-  sign = bignum_iszero(b) && bignum_isodd(e)
+  sign = bignum_sign(b) && bignum_isodd(e)
   # Set the base to it's abs value, i.e. make it positive
   b = bignum_setsign(b, 0)
   # Main loop
@@ -708,7 +708,7 @@ function bignum_pow(b, e,
     e = bignum_rshiftBits(e, 1) # exp = exp / 2
     b = bignum_mul(b, b)
   }
-  return bignum_mul(r, b)
+  return bignum_setsign(bignum_mul(r, b), sign)
 }
 
 # Fast power mod N function.
