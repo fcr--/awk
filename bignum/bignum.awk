@@ -877,8 +877,7 @@ function bignum_fromstr(str, base,
   return z
 }
 
-function bignum__treat(num,
-  arr){
+function bignum__treat(num){
   if(num ~ /^bignum /)
     return num
   if(num=="0")
