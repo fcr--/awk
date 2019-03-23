@@ -513,7 +513,7 @@ function bignum_bitand(a, b,
   na = split(bignum__treat(a), arr_a, " ")
   nb = split(bignum__treat(b), arr_b, " ")
   # set r with the sign of a:
-  r = "bignum " arr_[2]
+  r = "bignum " arr_a[2]
   for(j=na + 1; j <= nb; j++) arr_a[j] = 0
   for(j=nb + 1; j <= na; j++) arr_b[j] = 0
   n = na>nb ? na : nb
@@ -528,7 +528,7 @@ function bignum_bitxor(a, b,
   na = split(bignum__treat(a), arr_a, " ")
   nb = split(bignum__treat(b), arr_b, " ")
   # set r with the sign of a:
-  r = "bignum " arr_[2]
+  r = "bignum " arr_a[2]
   for(j=na + 1; j <= nb; j++) arr_a[j] = 0
   for(j=nb + 1; j <= na; j++) arr_b[j] = 0
   n = na>nb ? na : nb
@@ -543,7 +543,7 @@ function bignum_bitor(a, b,
   na = split(bignum__treat(a), arr_a, " ")
   nb = split(bignum__treat(b), arr_b, " ")
   # set r with the sign of a:
-  r = "bignum " arr_[2]
+  r = "bignum " arr_a[2]
   for(j=na + 1; j <= nb; j++) arr_a[j] = 0
   for(j=nb + 1; j <= na; j++) arr_b[j] = 0
   n = na>nb ? na : nb
