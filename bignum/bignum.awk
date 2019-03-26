@@ -125,12 +125,18 @@ function bignum_atom(bignum, i,
 # Set the i-th atom out of a bignum. If the bignum
 # has less than 'i+1' atoms, add zero atoms to reach i.
 function bignum_setatom(bignum, i, atomval,
-  bignuml, bignumr){
-  bignumr = bignum
-  sub("([^ ]+ +){" i "}", "", bignumr)
-  bignuml = substr(bignum, 1, length(bignum) - length(bignumr))
-  sub("[^ ]+ +", "", bignumr)
-  return bignuml atomval " " bignumr
+  tmparr, n) {
+  if(i < 1) return bignum
+  n = split(bignum, tmparr, " ")
+  if(i >= n) {
+    while(i-- > n) bignum = bignum " 0"
+    return bignum " " atomval
+  } else {
+    tmparr[i + 1] = atomval
+    bignum = "bignum"
+    for(i = 2; i <= n; i++) bignum = bignum " " tmparr[i]
+    return bignum
+  }
 }
 
 # Set the bignum sign
