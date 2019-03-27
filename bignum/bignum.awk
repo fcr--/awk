@@ -58,7 +58,7 @@
 
 BEGIN {
   bignum_atombits = 16
-  bignum_atombase = 2 ^ bignum_atombits
+  bignum_atombase = 65536  # 2 ^ bignum_atombits
   bignum_atommask = bignum_atombase - 1
 
   BIGNUM_ZERO = "bignum 0 0"
@@ -100,14 +100,14 @@ function bignum_zero(value,
 # Get the bignum sign
 function bignum_sign(bignum,
   tmparr){
-  split(bignum, tmparr)
+  split(bignum, tmparr, " ")
   return tmparr[2]
 }
 
 # Get the number of atoms in the bignum
 function bignum_atoms(bignum,
   tmparr){
-  return split(bignum, tmparr) - 2
+  return split(bignum, tmparr, " ") - 2
 }
 
 # Get the i-th atom out of a bignum.
@@ -115,7 +115,7 @@ function bignum_atoms(bignum,
 # returns 0.
 function bignum_atom(bignum, i,
   tmparr, n){
-  n = split(bignum, tmparr);
+  n = split(bignum, tmparr, " ");
   if(n - 3 < i){
     return 0
   }
@@ -125,12 +125,18 @@ function bignum_atom(bignum, i,
 # Set the i-th atom out of a bignum. If the bignum
 # has less than 'i+1' atoms, add zero atoms to reach i.
 function bignum_setatom(bignum, i, atomval,
-  bignuml, bignumr){
-  bignumr = bignum
-  sub("([^ ]+ +){" i "}", "", bignumr)
-  bignuml = substr(bignum, 1, length(bignum) - length(bignumr))
-  sub("[^ ]+ +", "", bignumr)
-  return bignuml atomval " " bignumr
+  tmparr, n) {
+  if(i < 1) return bignum
+  n = split(bignum, tmparr, " ")
+  if(i >= n) {
+    while(i-- > n) bignum = bignum " 0"
+    return bignum " " atomval
+  } else {
+    tmparr[i + 1] = atomval
+    bignum = "bignum"
+    for(i = 2; i <= n; i++) bignum = bignum " " tmparr[i]
+    return bignum
+  }
 }
 
 # Set the bignum sign
@@ -161,8 +167,8 @@ function bignum_abs(bignum){
 #         -1 if |a| < |b|
 function bignum_abscmp(a, b,
   na, nb, arr_a, arr_b, j){
-  na = split(a, arr_a)
-  nb = split(b, arr_b)
+  na = split(a, arr_a, " ")
+  nb = split(b, arr_b, " ")
   if(na > nb)
     return 1
   else if(na < nb)
@@ -200,7 +206,7 @@ function bignum_cmp(a, b){
 function bignum_iszero(bignum,
   n, tmparr){
   bignum = bignum__treat(bignum)
-  n = split(bignum, tmparr)
+  n = split(bignum, tmparr, " ")
   return (n == 3)&&(tmparr[3]==0)
 }
 
@@ -217,8 +223,8 @@ function bignum_ne(a, b){ return bignum_cmp(a, b) != 0 }
 # Add two bignums, don't care about the sign.
 function bignum_rawAdd(a, b,
   na, nb, j, max, arr_a, arr_b, r, car, sum){
-  na = split(a, arr_a)
-  nb = split(b, arr_b)
+  na = split(a, arr_a, " ")
+  nb = split(b, arr_b, " ")
   max = na>nb ? na : nb
   #for(j=na + 1; j <= nb; j++) arr_a[j] = 0
   #for(j=nb + 1; j <= na; j++) arr_b[j] = 0
@@ -226,8 +232,8 @@ function bignum_rawAdd(a, b,
   car = 0
   for(j=3; j<=max; j++){
     sum = arr_a[j] + arr_b[j] + car
-    car = rshift(sum, bignum_atombits)
-    r = r " " and(sum, bignum_atommask)
+    car = bit_rshift(sum, bignum_atombits)
+    r = r " " bit_and(sum, bignum_atommask)
   }
   if(car) r = r " " car
   return bignum_normalize(r)
@@ -236,8 +242,8 @@ function bignum_rawAdd(a, b,
 # Subtract two bignums, don't care about the sign. a > b condition needed.
 function bignum_rawSub(a, b,
   na, nb, j, arr_a, arr_b, r, car, subs){
-  na = split(a, arr_a)
-  nb = split(b, arr_b)
+  na = split(a, arr_a, " ")
+  nb = split(b, arr_b, " ")
   r = "bignum 0"
   # b padding:
   for(j=nb + 1; j <= na; j++) arr_b[j] = 0
@@ -306,15 +312,15 @@ function bignum_mul(a, b){
   b = bignum__treat(b)
   # The sign is the xor between the two signs
   return bignum_setsign(bignum_kmul(a, b),
-			xor(bignum_sign(a), bignum_sign(b)))
+			bit_xor(bignum_sign(a), bignum_sign(b)))
 }
 
 # Karatsuba Multiplication
 function bignum_kmul(a, b,
   i, na, nb, arr_a, arr_b, n, nmin, m, x0, x1, y0, y1, p0, p1, p2){
 
-  na = split(a, arr_a)
-  nb = split(b, arr_b)
+  na = split(a, arr_a, " ")
+  nb = split(b, arr_b, " ")
   n = (na > nb ? na : nb) - 2
   nmin = (na < nb ? na : nb) - 2
 
@@ -332,7 +338,7 @@ function bignum_kmul(a, b,
     x1 = x1 " " arr_a[i]
   for(i = m + 3; i <= nb; i++)
     y1 = y1 " " arr_b[i]
-  
+
   p2 = bignum_kmul(x1, y1)
   p1 = bignum_kmul(bignum_add(x1, x0), bignum_add(y1, y0))
   p0 = bignum_kmul(x0, y0)
@@ -352,9 +358,9 @@ function bignum_kmul(a, b,
 # Base Multiplacation.
 function bignum_bmul(a, b,
   i, j, na, nb, arr_a, arr_b, arr_r, car){
-  na = split(a, arr_a)
-  nb = split(b, arr_b)
-  split(bignum_zero(na + nb - 3), arr_r)
+  na = split(a, arr_a, " ")
+  nb = split(b, arr_b, " ")
+  split(bignum_zero(na + nb - 3), arr_r, " ")
   for(j=3; j <= nb; j++){
     car = 0
     for(i=3; i <= na; i++){
@@ -363,8 +369,8 @@ function bignum_bmul(a, b,
       # can't overflow since:
       # (2^N-1)*(2^N-1)+(2^N-1)+(2^N-1) == 2^(2*N)-1
       mul = arr_a[i]*arr_b[j]+arr_r[i+j-3]+car
-      car = rshift(mul, bignum_atombits)
-      mul = and(mul, bignum_atommask)
+      car = bit_rshift(mul, bignum_atombits)
+      mul = bit_and(mul, bignum_atommask)
       arr_r[i+j-3] = mul
     }
     if(car)
@@ -379,7 +385,7 @@ function bignum_bmul(a, b,
 function bignum_lshiftAtoms(bignum, n,    i, t, t2){
   t = " 0"
   for (i=1; i<=n; i*=2) {
-    if (and(i, n))
+    if (bit_and(i, n))
       t2 = t2 t
     t = t t
   }
@@ -403,12 +409,12 @@ function bignum_rshiftAtoms(bignum, n,    i, pos) {
 # 'n' must be <= bignum_atombits
 function bignum_lshiftBits(bignum, n,
   atoms, arr, car, j, t){
-  atoms = split(bignum, arr)
+  atoms = split(bignum, arr, " ")
   car = 0
   for(j=3; j <= atoms; j++){
     t = arr[j]
-    arr[j] = or(car, and(lshift(t, n), bignum_atommask))
-    car = rshift(t, bignum_atombits - n)
+    arr[j] = bit_or(car, bit_and(bit_lshift(t, n), bignum_atommask))
+    car = bit_rshift(t, bignum_atombits - n)
   }
   if(car)
     arr[atoms+1] = car
@@ -419,12 +425,12 @@ function bignum_lshiftBits(bignum, n,
 # 'n' must be <= bignum_atombits
 function bignum_rshiftBits(bignum, n,
   atoms, arr, car, j, t){
-  atoms = split(bignum, arr)
+  atoms = split(bignum, arr, " ")
   car = 0
   for(j=atoms; j >= 3; j--){
     t = arr[j]
-    arr[j] = or(car, rshift(t, n))
-    car = and(lshift(t, bignum_atombits - n), bignum_atommask)
+    arr[j] = bit_or(car, bit_rshift(t, n))
+    car = bit_and(bit_lshift(t, bignum_atombits - n), bignum_atommask)
   }
   # There's no need to normalize
   return bignum_arrayToList(arr)
@@ -445,30 +451,24 @@ function bignum_lshift(bignum, n,
 
 # Right shift 'bignum' of 'n' bits.
 function bignum_rshift(bignum, n,
-  atoms, bits, corr, j){
+  atoms, bits, corr, j, arr) {
   bignum = bignum__treat(bignum)
+  split(bignum, arr, " ")
   atoms = int(n / bignum_atombits)
   bits = int(n % bignum_atombits)
-  # correct for "arithmetic shift" - signed integer:
   corr = 0
-  if(bignum_sign(bignum)==1){
-    for(j=atoms+2; j>=3; j++)
-      if(arr[j]!=0){
-	corr = 1
-	break
-      }
-    if(!corr){
-      if(and(arr[atoms+3], compl(lshift(bignum_atommask, bits)) ) != 0){
-	corr = 1
+  if(bignum_sign(bignum) == 1) {
+    for(j = atoms + 2; j >= 3; j--) {
+      if(arr[j] != 0) {
+        corr = 1
+        break
       }
     }
+    if(!corr && bit_and(arr[atoms + 3], bit_compl(bit_lshift(bignum_atommask, bits))) != 0) corr = 1
   }
-  if(atoms)
-    bignum = bignum_lshiftAtoms(bignum, atoms)
-  if(bits)
-    bignum = bignum_lshiftBits(bignum, bits)
-  if(corr)
-    bignum = bignum_sub(bignum, 1)
+  if(atoms) bignum = bignum_rshiftAtoms(bignum, atoms)
+  if(bits) bignum = bignum_rshiftBits(bignum, bits)
+  if(corr) bignum = bignum_sub(bignum, 1)
   return bignum
 }
 
@@ -478,11 +478,11 @@ function bignum_rshift(bignum, n,
 function bignum_setbit(bignum, n,
   atom, bit, len, arr){
   atom = int(n / bignum_atombits) + 3
-  bit = lshift(1, int(n % bignum_atombits))
-  len = split(bignum, arr)
+  bit = bit_lshift(1, int(n % bignum_atombits))
+  len = split(bignum, arr, " ")
   while(atom > len)
     arr[len++] = 0
-  arr[atom] = or(arr[atom], bit)
+  arr[atom] = bit_or(arr[atom], bit)
   return bignum_arrayToList(arr)
 }
 
@@ -490,22 +490,23 @@ function bignum_setbit(bignum, n,
 function bignum_clearbit(bignum, n,
   atom, arr, len){
   atom = int(n / bignum_atombits) + 3
-  len = split(bignum, arr)
+  len = split(bignum, arr, " ")
   if(atom > len)
     return bignum
-  mask = xor(bignum_atommask, lshift(1, int(n % bignum_atombits)))
-  arr[atom] = and(arr[atom], mask)
+  mask = bit_xor(bignum_atommask, bit_lshift(1, int(n % bignum_atombits)))
+  arr[atom] = bit_and(arr[atom], mask)
   return bignum_arrayToList(arr)
 }
 
 # Test the bit 'n' of 'bignum'. Returns 1 if the bit is set.
-function bignum_testbit(bignum, n){
+function bignum_testbit(bignum, n
+  atom, arr, len, mask){
   atom = int(n / bignum_atombits) + 3
-  len = split(bignum, arr)
+  len = split(bignum, arr, " ")
   if(atom > len)
     return 0
-  mask = lshift(1, int(n % bignum_atombits))
-  return and(arr[atom], mask) != 0
+  mask = bit_lshift(1, int(n % bignum_atombits))
+  return bit_and(arr[atom], mask) != 0
 }
 
 # does bitwise AND between a and b
@@ -515,45 +516,45 @@ function bignum_bitand(a, b,
   # equivalent to adding leading zeros to a regular big-endian
   # representation. The two numbers are extended to the same length,
   # then the operation is applied to the absolute value.
-  na = split(bignum__treat(a), arr_a)
-  nb = split(bignum__treat(b), arr_b)
+  na = split(bignum__treat(a), arr_a, " ")
+  nb = split(bignum__treat(b), arr_b, " ")
   # set r with the sign of a:
-  r = "bignum " arr_[2]
+  r = "bignum " arr_a[2]
   for(j=na + 1; j <= nb; j++) arr_a[j] = 0
   for(j=nb + 1; j <= na; j++) arr_b[j] = 0
   n = na>nb ? na : nb
   for(j=3; j <= n; j++)
-    r = r " " and(arr_a[j], arr_b[j])
+    r = r " " bit_and(arr_a[j], arr_b[j])
   return bignum_normalize(r)
 }
 
 # does bitwise XOR between a and b
 function bignum_bitxor(a, b,
   j, n, na, nb, r, arr_a, arr_b){
-  na = split(bignum__treat(a), arr_a)
-  nb = split(bignum__treat(b), arr_b)
+  na = split(bignum__treat(a), arr_a, " ")
+  nb = split(bignum__treat(b), arr_b, " ")
   # set r with the sign of a:
-  r = "bignum " arr_[2]
+  r = "bignum " arr_a[2]
   for(j=na + 1; j <= nb; j++) arr_a[j] = 0
   for(j=nb + 1; j <= na; j++) arr_b[j] = 0
   n = na>nb ? na : nb
   for(j=3; j <= n; j++)
-    r = r " " xor(arr_a[j], arr_b[j])
+    r = r " " bit_xor(arr_a[j], arr_b[j])
   return bignum_normalize(r)
 }
 
 # does bitwise OR between a and b
 function bignum_bitor(a, b,
   j, n, na, nb, r, arr_a, arr_b){
-  na = split(bignum__treat(a), arr_a)
-  nb = split(bignum__treat(b), arr_b)
+  na = split(bignum__treat(a), arr_a, " ")
+  nb = split(bignum__treat(b), arr_b, " ")
   # set r with the sign of a:
-  r = "bignum " arr_[2]
+  r = "bignum " arr_a[2]
   for(j=na + 1; j <= nb; j++) arr_a[j] = 0
   for(j=nb + 1; j <= na; j++) arr_b[j] = 0
   n = na>nb ? na : nb
   for(j=3; j <= n; j++)
-    r = r " " or(arr_a[j], arr_b[j])
+    r = r " " bit_or(arr_a[j], arr_b[j])
   return bignum_normalize(r)
 }
 
@@ -563,7 +564,7 @@ function bignum_bits(bignum,
   bits = (bignum_atoms(bignum) - 1)*bignum_atombits
   sub(/.* /, "", bignum)
   while(0 != bignum){
-    bignum = rshift(bignum, 1)
+    bignum = bit_rshift(bignum, 1)
     bits++
   }
   return bits
@@ -599,23 +600,23 @@ function bignum_bits(bignum,
 # This procedure is used by divqr, div, mod, rem.
 function bignum_rawDiv(num, div,
   n, arr_num, res, arr_quo, bit, b_atom, b_bit, p){
-  n = split(num, arr_num)
+  n = split(num, arr_num, " ")
   res = BIGNUM_ZERO
-  split(bignum_zero(n), arr_quo)
+  split(bignum_zero(n), arr_quo, " ")
   for(bit = bignum_bits(num) - 1; bit >= 0; bit--){
     b_atom = int(bit / bignum_atombits) + 3
-    b_bit = lshift(1, and(bit, bignum_atombits - 1))
+    b_bit = bit_lshift(1, bit_and(bit, bignum_atombits - 1))
     res = bignum_lshiftBits(res, 1)
-    if(and(arr_num[b_atom], b_bit)){
+    if(bit_and(arr_num[b_atom], b_bit)){
       # Exploit the internal structure to make an OR 1, very fast in
       # terms of awk, no need to split and join it:
       p = index(substr(res, 10), " ")
       p = (!p)? length(res) : p+8
-      res = substr(res, 1, p-1) or(substr(res, p, 1), 1) substr(res, p+1)
+      res = substr(res, 1, p-1) bit_or(substr(res, p, 1), 1) substr(res, p+1)
     }
     if(bignum_abscmp(res, div) >= 0){
       res = bignum_rawSub(res, div)
-      arr_quo[b_atom] = or(arr_quo[b_atom], b_bit)
+      arr_quo[b_atom] = bit_or(arr_quo[b_atom], b_bit)
     }
   }
   # There's no need to normalize
@@ -626,11 +627,11 @@ function bignum_rawDiv(num, div,
 # The procedure returns a two-elements list with the bignum quotient and
 # the remainder (that's just a number being <= of the max atom value).
 function bignum_rawDivByAtom(num, div,
-  atoms, arr_n){
-  atoms = split(num, arr_num) - 2
+  atoms, arr_num, t, j){
+  atoms = split(num, arr_num, " ") - 2
   t = 0
   for(j = atoms; j > 0; j--){
-    t = lshift(t, bignum_atombits) + arr_num[j+2]
+    t = bit_lshift(t, bignum_atombits) + arr_num[j+2]
     arr_num[j+2] = int(t / div)
     t = int(t % div)
   }
@@ -650,7 +651,7 @@ function bignum_divqr(n, d,
   if(bignum_iszero(d))
     bignum__alert("Error: Division by zero")
   split(bignum_rawDiv(n, d), res, "|")
-  res[1] = bignum_setsign(res[1], xor(bignum_sign(n), bignum_sign(d)))
+  res[1] = bignum_setsign(res[1], bit_xor(bignum_sign(n), bignum_sign(d)))
   res[2] = bignum_setsign(res[2], bignum_sign(n))
   return res[1] "|" res[2]
 }
@@ -695,13 +696,13 @@ function bignum_iseven(n){
 
 # Returns b^e
 function bignum_pow(b, e,
-  r){
+  sign, r){
   b = bignum__treat(b)
   e = bignum__treat(e)
   if(bignum_iszero(e))
     return BIGNUM_ONE
   # The power is negative is the base is negative and the exponent is odd
-  sign = bignum_iszero(b) && bignum_isodd(e)
+  sign = bignum_sign(b) && bignum_isodd(e)
   # Set the base to it's abs value, i.e. make it positive
   b = bignum_setsign(b, 0)
   # Main loop
@@ -713,7 +714,7 @@ function bignum_pow(b, e,
     e = bignum_rshiftBits(e, 1) # exp = exp / 2
     b = bignum_mul(b, b)
   }
-  return bignum_mul(r, b)
+  return bignum_setsign(bignum_mul(r, b), sign)
 }
 
 # Fast power mod N function.
@@ -809,10 +810,8 @@ function bignum_factor(n,
     i2 = bignum_rem(bignum_rawAdd(bignum_kmul(i2, i2), BIGNUM_ONE), n)
     i2 = bignum_rem(bignum_rawAdd(bignum_kmul(i2, i2), BIGNUM_ONE), n)
     gcd = bignum_gcd(bignum_abs(bignum_sub(i1, i2)), n)
-    print bignum_tostr(i1), bignum_tostr(i2), bignum_tostr(gcd)
+    # print bignum_tostr(i1), bignum_tostr(i2), bignum_tostr(gcd)
   }
-  if (bignum_eq(gcd, n))
-    return n
   return gcd
 }
 
@@ -847,7 +846,7 @@ function bignum_tostr(z, base,
 
 # Create a bignum from a string representation in base 'base'.
 function bignum_fromstr(str, base,
-  sign, bigbase, digitval, z){
+  sign, bigbase, digitval, z, i){
   if(base=="")
     base=0
   sub("^ *", "", str)
@@ -884,8 +883,7 @@ function bignum_fromstr(str, base,
   return z
 }
 
-function bignum__treat(num,
-  arr){
+function bignum__treat(num){
   if(num ~ /^bignum /)
     return num
   if(num=="0")
